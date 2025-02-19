@@ -64,11 +64,6 @@ This project is a compiler for a custom programming language. It includes module
 - Support global and local variables.
 - Display the transition state table.
 
-## Usage Instructions
-1. **Compile the project**: `javac -d bin src/**/*.java`
-2. **Run the tests**: `java -cp bin automata.test`
-3. **Run the lexer tests**: `java -cp bin lexer.TestLexer`
-
 ## Keywords and Rules
 - **Keywords**: Define your own keywords.
 - **Identifiers**: Only lowercase letters (a-z).

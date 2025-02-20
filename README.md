@@ -9,177 +9,57 @@
 ## Project Overview
 This project implements a **compiler for a custom programming language**. The compiler is built modularly, with components for **lexical analysis**, **automata (DFA and NFA)**, and **symbol table management**. It handles source code parsing, tokenization, and error detection for the defined language specifications.
 
----
+## Token Rules and Keywords for Lexer
 
-## Modules and Classes
+**1. Keywords** 
+wn, decimal, var, if, else, while, print, input, return, true, false, function
 
-### **Automata Module**
-This module handles **deterministic (DFA)** and **non-deterministic finite automata (NFA)** operations, including regular expression parsing.
+**2. Operators**
+=, +, -, *, /, %, &&, ||, !, ==, !=, <, >, <=, >=
 
-- **DFA.java**  
-  Represents a deterministic finite automaton.  
-  **Methods**:  
-    - `setStartState`  
-    - `addTransition`  
-    - `setFinalState`  
-    - `simulate`  
-    - `displayDFA`
+**3. Separators**
+(  )  {  }  ;  ,
 
-- **DFABuilder.java**  
-  Provides pre-defined DFAs for specific token types.  
-  **Methods**:  
-    - `createIdentifierDFA`  
-    - `createNumberDFA`  
-    - `createOperatorDFA`
+**4. Token Matching Rules**
+The lexer uses regular expressions to match different token types:
 
-- **NFA.java**  
-  Represents a non-deterministic finite automaton.  
-  **Methods**:  
-    - `getStartState`  
-    - `getFinalStates`  
-    - `getStates`  
-    - `accepts`  
-    - `singleChar`  
-    - `concat`  
-    - `union`  
-    - `star`
+Identifiers: Must start with a letter (a-z)  and can be followed by letters
+Numbers: Supports integer and floating-point numbers.
+String Literals: Strings are enclosed in double quotes "...".
 
-- **RegexParser.java**  
-  Converts regular expressions into NFAs.  
-  **Methods**: `toNFA`
+Comments:
 
-- **State.java**  
-  Represents a state in an automaton.  
-  **Methods**:  
-    - `getId`  
-    - `isFinal`  
-    - `setFinal`  
-    - `addTransition`  
-    - `getTransitions`
+Single-line comments: Start with $$ and extend to the end of the line.
 
-- **Transition.java**  
-  Represents a transition between states.  
-  **Methods**:  
-    - `getSymbol`  
-    - `getTo`
+Multi-line comments: Enclosed between #$ and $#.
 
-- **test.java**  
-  Contains test cases for DFAs.  
-  **Methods**:  
-    - `main`  
-    - `test`
 
----
 
-### **Lexer Module**
-This module tokenizes the input source code into recognizable tokens for further processing.
 
-- **Lexer.java**  
-  Core lexer logic for tokenization.  
-  **Methods**:  
-    - `process`  
-    - `matchDFA`  
-    - `consumeSingleLineComment`  
-    - `consumeMultiLineComment`  
-    - `consumeString`  
-    - `displayTokens`
+**5. Token Types**
 
-- **TestLexer.java**  
-  Unit tests for the lexer module.  
-  **Methods**: `main`
+**Token Type**                                              **Description**
 
-- **Token.java**  
-  Represents a token in the source code.  
-  **Methods**:  
-    - `getType`  
-    - `getLexeme`  
-    - `toString`
+KEYWORD                                                    Reserved words in the language
 
----
+IDENTIFIER                                                 Variable and function names
 
-### **Symbols Module**
-This module manages the symbol table, tracking variables, functions, and identifiers with their attributes.
+NUMBER                                                     Integer and floating-point numbers
 
-- **SymbolTable.java**  
-  Manages entries in the symbol table.  
-  **Methods**:  
-    - `insert`  
-    - `updateValue`  
-    - `lookup`  
-    - `remove`  
-    - `display`
+OPERATOR                                                   Arithmetic and logical operators
 
-- **SymbolTableEntry.java**  
-  Represents a single entry in the symbol table.  
-  **Methods**:  
-    - `getName`  
-    - `getDataType`  
-    - `getType`  
-    - `getScope`  
-    - `getValue`  
-    - `toString`
+SEPARATOR                                                  Punctuation marks and brackets
 
----
+STRING                                                     Text enclosed in double quotes
 
-## Assignment Requirements
+COMMENT                                                    Single-line and multi-line comments
 
-### 1. Regular Expressions, NFA, and DFA
-- Implement workflows for NFA and DFA generation from regular expressions.
-- Display:
-  - Total and unique states in the automata.
-  - Transition state tables.
+CONSTANT                                                   Numeric constants
 
-### 2. Lexical Analyzer
-- Tokenize source code into tokens for keywords, identifiers, literals, and operators.
-- Features:
-  - Pre-processing and case insensitivity.
-  - Multi-line and single-line comment handling.
-  - Display the number and list of tokens.
+FUNCTION                                                   Function names
 
-### 3. Symbol Table
-- Track and manage variables, functions, and identifiers.
-- Store details such as:
-  - Name, type, memory location, and scope.
-- Handle:
-  - Data types, input/output, strings, constants, arithmetic operations.
+INVALID                                                    Unrecognized tokens
 
-### 4. Error Handling
-- Detect and report violations of language rules.
-- Include the line number where errors occur.
 
----
-
-## Language Specifications
-
-### **Keywords**
-Custom-defined keywords for the language.
-
-### **Identifiers**
-- Valid identifiers: lowercase letters (`a-z`).
-
-### **Numbers**
-- Support integers and decimals (up to 5 decimal places).
-- Support scientific notation for numbers with exponents.
-
-### **Operators**
-Supported operators include:  
-`+`, `-`, `*`, `/`, `%`, `^`.
-
-### **Other Rules**
-- Ignore extra spaces and handle multi-line comments.
-- Support global and local variables.
-
----
-
-## Example Code
-Sample code that adheres to the language specifications:
-
-```java
-function myfunction() {
-  wn x = 10;
-  decimal y = x + 525;
-  print(y);
-}
-```
 
 

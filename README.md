@@ -1,79 +1,185 @@
-# Compiler Construction Project
+# Compiler Construction
 
-## Overview
-This project is a compiler for a custom programming language. It includes modules for lexical analysis, automata (DFA and NFA), and symbol table management.
+## Team Details
+- ### **Hassan Imran , 22I-0813 , Section-E**
+- ### **Mohammad Bilal , 22I-0806 , Section-E**
+
+---
+
+## Project Overview
+This project implements a **compiler for a custom programming language**. The compiler is built modularly, with components for **lexical analysis**, **automata (DFA and NFA)**, and **symbol table management**. It handles source code parsing, tokenization, and error detection for the defined language specifications.
+
+---
 
 ## Modules and Classes
 
-### Automata Module
-- **DFA.java**: Represents a deterministic finite automaton.
-  - Methods: `setStartState`, `addTransition`, `setFinalState`, `simulate`, `displayDFA`
-- **DFABuilder.java**: Provides methods to create specific DFAs.
-  - Methods: `createIdentifierDFA`, `createNumberDFA`, `createOperatorDFA`
-- **NFA.java**: Represents a non-deterministic finite automaton.
-  - Methods: `getStartState`, `getFinalStates`, `getStates`, `accepts`, `singleChar`, `concat`, `union`, `star`
-- **RegexParser.java**: Converts regular expressions to NFAs.
-  - Methods: `toNFA`
-- **State.java**: Represents a state in an automaton.
-  - Methods: `getId`, `isFinal`, `setFinal`, `addTransition`, `getTransitions`
-- **Transition.java**: Represents a transition between states.
-  - Methods: `getSymbol`, `getTo`
-- **test.java**: Contains test cases for DFAs.
-  - Methods: `main`, `test`
+### **Automata Module**
+This module handles **deterministic (DFA)** and **non-deterministic finite automata (NFA)** operations, including regular expression parsing.
 
-### Lexer Module
-- **Lexer.java**: Tokenizes input code into a list of tokens.
-  - Methods: `process`, `matchDFA`, `consumeSingleLineComment`, `consumeMultiLineComment`, `consumeString`, `displayTokens`
-- **TestLexer.java**: Contains test cases for the lexer.
-  - Methods: `main`
-- **Token.java**: Represents a token in the input code.
-  - Methods: `getType`, `getLexeme`, `toString`
+- **DFA.java**  
+  Represents a deterministic finite automaton.  
+  **Methods**:  
+    - `setStartState`  
+    - `addTransition`  
+    - `setFinalState`  
+    - `simulate`  
+    - `displayDFA`
 
-### Symbols Module
-- **SymbolTable.java**: Manages the symbol table for the compiler.
-  - Methods: `insert`, `updateValue`, `lookup`, `remove`, `display`
-- **SymbolTableEntry.java**: Represents an entry in the symbol table.
-  - Methods: `getName`, `getDataType`, `getType`, `getScope`, `getValue`, `toString`
+- **DFABuilder.java**  
+  Provides pre-defined DFAs for specific token types.  
+  **Methods**:  
+    - `createIdentifierDFA`  
+    - `createNumberDFA`  
+    - `createOperatorDFA`
+
+- **NFA.java**  
+  Represents a non-deterministic finite automaton.  
+  **Methods**:  
+    - `getStartState`  
+    - `getFinalStates`  
+    - `getStates`  
+    - `accepts`  
+    - `singleChar`  
+    - `concat`  
+    - `union`  
+    - `star`
+
+- **RegexParser.java**  
+  Converts regular expressions into NFAs.  
+  **Methods**: `toNFA`
+
+- **State.java**  
+  Represents a state in an automaton.  
+  **Methods**:  
+    - `getId`  
+    - `isFinal`  
+    - `setFinal`  
+    - `addTransition`  
+    - `getTransitions`
+
+- **Transition.java**  
+  Represents a transition between states.  
+  **Methods**:  
+    - `getSymbol`  
+    - `getTo`
+
+- **test.java**  
+  Contains test cases for DFAs.  
+  **Methods**:  
+    - `main`  
+    - `test`
+
+---
+
+### **Lexer Module**
+This module tokenizes the input source code into recognizable tokens for further processing.
+
+- **Lexer.java**  
+  Core lexer logic for tokenization.  
+  **Methods**:  
+    - `process`  
+    - `matchDFA`  
+    - `consumeSingleLineComment`  
+    - `consumeMultiLineComment`  
+    - `consumeString`  
+    - `displayTokens`
+
+- **TestLexer.java**  
+  Unit tests for the lexer module.  
+  **Methods**: `main`
+
+- **Token.java**  
+  Represents a token in the source code.  
+  **Methods**:  
+    - `getType`  
+    - `getLexeme`  
+    - `toString`
+
+---
+
+### **Symbols Module**
+This module manages the symbol table, tracking variables, functions, and identifiers with their attributes.
+
+- **SymbolTable.java**  
+  Manages entries in the symbol table.  
+  **Methods**:  
+    - `insert`  
+    - `updateValue`  
+    - `lookup`  
+    - `remove`  
+    - `display`
+
+- **SymbolTableEntry.java**  
+  Represents a single entry in the symbol table.  
+  **Methods**:  
+    - `getName`  
+    - `getDataType`  
+    - `getType`  
+    - `getScope`  
+    - `getValue`  
+    - `toString`
+
+---
 
 ## Assignment Requirements
-1. **RE, NFA, and DFA**:
-   - Workflow for NFA, Regular Expression, and DFA classes.
-   - Display total and unique states for each parse.
-   - Show a transition state table.
 
-2. **Lexical Analyzer**:
-   - Tokenize source code into tokens.
-   - Handle pre-processing and case sensitivity.
-   - Display the number of tokens.
+### 1. Regular Expressions, NFA, and DFA
+- Implement workflows for NFA and DFA generation from regular expressions.
+- Display:
+  - Total and unique states in the automata.
+  - Transition state tables.
 
-3. **Symbol Table**:
-   - Track variables, functions, and identifiers.
-   - Store details like names, types, and memory locations.
-   - Handle entries for datatypes, input/output, strings, comments, constants, and arithmetic operations.
+### 2. Lexical Analyzer
+- Tokenize source code into tokens for keywords, identifiers, literals, and operators.
+- Features:
+  - Pre-processing and case insensitivity.
+  - Multi-line and single-line comment handling.
+  - Display the number and list of tokens.
 
-4. **Error Handler**:
-   - Identify rule violations and show the line where the error occurs.
+### 3. Symbol Table
+- Track and manage variables, functions, and identifiers.
+- Store details such as:
+  - Name, type, memory location, and scope.
+- Handle:
+  - Data types, input/output, strings, constants, arithmetic operations.
 
-## Constraints
-- Support Boolean, Integer, Decimal, and Character data types.
-- Recognize lowercase letters as valid identifiers.
-- Perform basic arithmetic operations.
-- Handle decimal numbers up to five decimal places.
-- Support exponents for whole and decimal numbers.
+### 4. Error Handling
+- Detect and report violations of language rules.
+- Include the line number where errors occur.
+
+---
+
+## Language Specifications
+
+### **Keywords**
+Custom-defined keywords for the language.
+
+### **Identifiers**
+- Valid identifiers: lowercase letters (`a-z`).
+
+### **Numbers**
+- Support integers and decimals (up to 5 decimal places).
+- Support scientific notation for numbers with exponents.
+
+### **Operators**
+Supported operators include:  
+`+`, `-`, `*`, `/`, `%`, `^`.
+
+### **Other Rules**
 - Ignore extra spaces and handle multi-line comments.
 - Support global and local variables.
-- Display the transition state table.
 
-## Keywords and Rules
-- **Keywords**: Define your own keywords.
-- **Identifiers**: Only lowercase letters (a-z).
-- **Numbers**: Integers and decimals up to 5 places.
-- **Operators**: +, -, *, /, %, ^
+---
 
 ## Example Code
+Sample code that adheres to the language specifications:
+
 ```java
-// Example code to be compiled by the custom compiler
-int a = 5;
-float b = 3.14;
-boolean c = true;
-char d = 'x';
+function myfunction() {
+  wn x = 10;
+  decimal y = x + 525;
+  print(y);
+}
+```
+
+

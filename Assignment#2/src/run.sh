@@ -1,3 +1,3 @@
-g++ v2.cpp
+g++ a2.cpp
 ./a.out
 rm a.out

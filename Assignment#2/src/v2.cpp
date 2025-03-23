@@ -579,7 +579,7 @@ void constructLL1Table(const Grammar& grammar,
 
 int main() {
     // Step 1: Read grammar from file
-    string filename = "inputllcheck.txt";
+    string filename = "example3.txt";
     
     Grammar originalGrammar = readGrammar(filename);
     

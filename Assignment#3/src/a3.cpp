@@ -7,356 +7,375 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <stack>
 
 using namespace std;
 
-// Structure to represent the grammar with string-based symbols
+// Structure for Grammar. It keep production rules and starting symbol
 struct Grammar {
-    map<string, vector<vector<string>>> productions; // Non-terminal to list of productions
-    string startSymbol; // Start symbol of the grammar
+    map<string, vector<vector<string>>> productions; // Production rules, like A -> B C | D
+    string startSymbol; // This is where grammar start
 };
 
-// Stack class for LL(1) parsing
-struct Stack {
-    vector<string> symbols; // Stack of symbols (terminals, non-terminals, $)
+// Define LL(1) parse table
+typedef map<string, map<string, vector<string>>> ParseTable; // First map non-terminal, second map terminal, then production
 
-    // Push a single symbol onto the stack
-    void push(const string& symbol) {
-        symbols.push_back(symbol);
+// Class to handle parsing stack
+class ParsingStack {
+private:
+    stack<string> st; // Stack hold the symbols
+
+public:
+    void push(const string& symbol) { // Push symbol to stack
+        st.push(symbol);
     }
 
-    // Push a production's symbols in reverse order
-    void push_production(const vector<string>& prod) {
-        for (auto it = prod.rbegin(); it != prod.rend(); ++it) {
-            push(*it);
+    string pop() { // Pop top element from stack
+        if (st.empty()) { // If nothing inside, show error
+            cerr << "Error: Stack underflow!" << endl;
+            return "";
         }
-    }
-
-    // Pop the top symbol and return it
-    string pop() {
-        string top = symbols.back();
-        symbols.pop_back();
+        string top = st.top(); // Get top element
+        st.pop(); // Remove top element
         return top;
     }
 
-    // Get the top symbol without popping
-    string top() const {
-        return symbols.empty() ? "" : symbols.back();
-    }
-
-    // Check if the stack is empty
-    bool empty() const {
-        return symbols.empty();
-    }
-
-    // Get stack contents as a string for display
-    string to_string() const {
-        string result = "[";
-        for (size_t i = 0; i < symbols.size(); ++i) {
-            result += symbols[i];
-            if (i < symbols.size() - 1) result += " ";
+    string top() { // Just see top element, no remove
+        if (st.empty()) { // If stack empty, show error
+            cerr << "Error: Empty stack!" << endl;
+            return "";
         }
+        return st.top(); // Give top element
+    }
+
+    bool empty() { // Check if stack no have anything
+        return st.empty();
+    }
+
+    string toString() { // Make stack elements into nice string
+        string result = "[";
+        stack<string> temp = st; // Copy of stack, so original not change
+        vector<string> contents;
+
+        while (!temp.empty()) { // Take all element one by one
+            contents.push_back(temp.top());
+            temp.pop();
+        }
+
+        reverse(contents.begin(), contents.end()); // Put back in correct order
+
+        for (size_t i = 0; i < contents.size(); i++) { // Join with space
+            result += contents[i];
+            if (i < contents.size() - 1) {
+                result += " ";
+            }
+        }
+
         result += "]";
         return result;
     }
 };
 
-// Function to split a string by a delimiter
-vector<string> split(const string& str, char delimiter) {
-    vector<string> tokens;
-    string token;
-    istringstream tokenStream(str);
-    while (getline(tokenStream, token, delimiter)) {
-        if (!token.empty()) tokens.push_back(token);
-    }
-    return tokens;
-}
-
-// Function to read grammar from file
+// Function for reading grammar from file
 Grammar readGrammar(const string& filename) {
     Grammar grammar;
-    ifstream fin(filename);
-    
-    if (!fin) {
+    ifstream fin(filename); // Open the file
+
+    if (!fin) { // If can't open, show problem
         cerr << "Error opening file: " << filename << endl;
         exit(1);
     }
-    
+
     string line;
-    bool isFirst = true;
-    
+    bool isFirst = true; // First line have start symbol
+
     cout << "Original Grammar:" << endl;
-    while (getline(fin, line)) {
+    while (getline(fin, line)) { // Read line by line
         cout << line << endl;
-        
-        // Split line into non-terminal and productions (e.g., "S->int V ;|if ( E )")
-        size_t arrowPos = line.find("->");
-        if (arrowPos == string::npos) continue;
-        
-        string nonTerminal = line.substr(0, arrowPos);
-        nonTerminal.erase(remove_if(nonTerminal.begin(), nonTerminal.end(), ::isspace), nonTerminal.end());
-        
-        if (isFirst) {
-            grammar.startSymbol = nonTerminal;
+
+        if (isFirst) { // First line, so set start symbol
+            grammar.startSymbol = string(1, line[0]);
             isFirst = false;
         }
-        
-        // Split productions by '|'
-        string prodStr = line.substr(arrowPos + 2);
-        vector<string> prodParts = split(prodStr, '|');
-        
-        // Process each production
-        for (const string& prod : prodParts) {
-            vector<string> symbols = split(prod, ' ');
-            grammar.productions[nonTerminal].push_back(symbols);
+
+        string nonTerminal = string(1, line[0]); // First character is non-terminal
+        vector<vector<string>> productions;
+        vector<string> currentProduction;
+
+        string rhs = line.substr(3); // Skip A-> part
+        istringstream iss(rhs);
+        string token;
+        while (iss >> token) { // Split using spaces
+            if (token == "|") { // New production if |
+                productions.push_back(currentProduction);
+                currentProduction.clear();
+            } else {
+                currentProduction.push_back(token); // Add token to current production
+            }
         }
+        if (!currentProduction.empty())
+            productions.push_back(currentProduction);
+
+        grammar.productions[nonTerminal] = productions; // Save to grammar
     }
-    
+
     fin.close();
-    return grammar;
+    return grammar; // Give grammar
 }
 
-// Function to print the grammar
+// Function to print grammar nicely
 void printGrammar(const Grammar& grammar, const string& title) {
     cout << "\n" << title << ":" << endl;
-    for (const auto& entry : grammar.productions) {
-        cout << entry.first << " -> ";
-        for (size_t i = 0; i < entry.second.size(); ++i) {
-            for (const string& symbol : entry.second[i]) {
-                cout << symbol << " ";
+    for (const auto& entry : grammar.productions) { // For each non-terminal
+        cout << entry.first << "->";
+        for (size_t i = 0; i < entry.second.size(); i++) { // Each production
+            for (size_t j = 0; j < entry.second[i].size(); j++) {
+                cout << entry.second[i][j];
+                if (j < entry.second[i].size() - 1) cout << " ";
             }
-            if (i < entry.second.size() - 1) cout << "| ";
+            if (i < entry.second.size() - 1) {
+                cout << "|"; // Separate with |
+            }
         }
         cout << endl;
     }
 }
 
-// Function to find the common prefix of two productions
-vector<string> findCommonPrefix(const vector<string>& prod1, const vector<string>& prod2) {
-    vector<string> prefix;
-    size_t minLen = min(prod1.size(), prod2.size());
-    for (size_t i = 0; i < minLen && prod1[i] == prod2[i]; ++i) {
-        prefix.push_back(prod1[i]);
-    }
-    return prefix;
-}
-
-// Left factoring function
+// Function to do left factoring
 Grammar applyLeftFactoring(const Grammar& original) {
     Grammar result = original;
-    bool factored = false;
+    bool factored = false; // Track if factoring done
     map<string, vector<vector<string>>> newProductions;
-    
+
     for (const auto& entry : result.productions) {
         string nonTerminal = entry.first;
         vector<vector<string>> productions = entry.second;
-        
-        // Check for common prefixes
-        for (size_t i = 0; i < productions.size(); ++i) {
-            for (size_t j = i + 1; j < productions.size(); ++j) {
-                vector<string> prefix = findCommonPrefix(productions[i], productions[j]);
-                
-                if (!prefix.empty()) { // Common prefix found
+
+        // Try find common prefix
+        for (size_t i = 0; i < productions.size(); i++) {
+            for (size_t j = i + 1; j < productions.size(); j++) {
+                // Find how many same in start
+                size_t k = 0;
+                while (k < productions[i].size() && k < productions[j].size() &&
+                       productions[i][k] == productions[j][k]) {
+                    k++;
+                }
+
+                if (k > 0) {  // If common prefix found
                     factored = true;
-                    
-                    // Create a new non-terminal
-                    string newNonTerminal = nonTerminal + "1";
+
+                    // Make new non-terminal
+                    string newNonTerminal = "Z";
                     while (result.productions.find(newNonTerminal) != result.productions.end() ||
                            newProductions.find(newNonTerminal) != newProductions.end()) {
-                        newNonTerminal.back()++;
+                        newNonTerminal[0]--; // Try Z, then Y, X, etc
                     }
-                    
-                    // Create productions for the new non-terminal
+
+                    // Make production for new non-terminal
                     vector<vector<string>> newNonTerminalProductions;
-                    
-                    // Add suffixes
-                    vector<string> suffix1(productions[i].begin() + prefix.size(), productions[i].end());
-                    vector<string> suffix2(productions[j].begin() + prefix.size(), productions[j].end());
-                    
-                    if (suffix1.empty()) suffix1 = {"e"};
-                    if (suffix2.empty()) suffix2 = {"e"};
-                    
+
+                    // Take remaining part after prefix
+                    vector<string> suffix1(productions[i].begin() + k, productions[i].end());
+                    vector<string> suffix2(productions[j].begin() + k, productions[j].end());
+
+                    if (suffix1.empty()) suffix1.push_back("e"); // If nothing left, use epsilon
+                    if (suffix2.empty()) suffix2.push_back("e");
+
                     newNonTerminalProductions.push_back(suffix1);
                     newNonTerminalProductions.push_back(suffix2);
-                    
-                    // Update original non-terminal's production
+
+                    // Update original non-terminal
+                    vector<string> prefix(productions[i].begin(), productions[i].begin() + k);
                     prefix.push_back(newNonTerminal);
-                    
-                    // Remove the two original productions
-                    productions.erase(productions.begin() + j);
-                    productions.erase(productions.begin() + i);
-                    
-                    // Add the new production
-                    productions.push_back(prefix);
-                    
-                    // Store the new non-terminal
-                    newProductions[newNonTerminal] = newNonTerminalProductions;
-                    
-                    // Restart checking
-                    i = -1;
+
+                    // Remove old productions
+                    if (j > i) {
+                        productions.erase(productions.begin() + j);
+                        productions.erase(productions.begin() + i);
+                    } else {
+                        productions.erase(productions.begin() + i);
+                        productions.erase(productions.begin() + j);
+                    }
+
+                    productions.push_back(prefix); // Add new one with prefix
+
+                    newProductions[newNonTerminal] = newNonTerminalProductions; // Save new non-terminal
+
+                    i = -1; // Start again
                     break;
                 }
             }
         }
-        
-        result.productions[nonTerminal] = productions;
+
+        result.productions[nonTerminal] = productions; // Update
     }
-    
-    // Add new productions
-    for (const auto& entry : newProductions) {
+
+    for (const auto& entry : newProductions) { // Add all new productions
         result.productions[entry.first] = entry.second;
     }
-    
-    cout << "\n" << (factored ? "Left factoring was applied." : "No left factoring needed.") << endl;
+
+    if (factored) {
+        cout << "\nLeft factoring was applied." << endl;
+    } else {
+        cout << "\nNo left factoring needed." << endl;
+    }
+
     return result;
 }
 
-// DFS for FIRST set computation
-bool calculateFirstDFS(const string& symbol, const string& original,
-                      const map<string, vector<vector<string>>>& productions,
-                      set<string>& firstSet) {
-    // If terminal or epsilon
-    if (productions.find(symbol) == productions.end() || symbol == "e") {
+// DFS to find first set
+bool calculateFirstDFS(const string& symbol, const string& original, const string& last,
+                     const map<string, vector<vector<string>>>& productions,
+                     set<string>& firstSet) {
+    if (!(symbol[0] >= 'A' && symbol[0] <= 'Z')) { // If terminal or epsilon
         firstSet.insert(symbol);
         return symbol == "e";
     }
-    
-    bool canDeriveEpsilon = false;
-    
+
+    bool canDeriveEpsilon = false; // Track if epsilon possible
+
     for (const auto& production : productions.at(symbol)) {
-        if (production.empty() || production == vector<string>{"e"}) {
-            firstSet.insert("e");
+        if (production.empty()) {
+            firstSet.insert("e"); // Empty means epsilon
             canDeriveEpsilon = true;
             continue;
         }
-        
-        bool allCanDeriveEpsilon = true;
-        
-        for (size_t i = 0; i < production.size(); ++i) {
-            const string& currentSymbol = production[i];
-            
-            // Skip recursive non-terminal to avoid infinite loop
-            if (currentSymbol == symbol) {
+
+        bool allCanDeriveEpsilon = true; // Assume all symbols can epsilon
+
+        for (size_t i = 0; i < production.size(); i++) {
+            string currentSymbol = production[i];
+
+            if (currentSymbol == symbol) { // Left recursion, skip
                 allCanDeriveEpsilon = false;
                 break;
             }
-            
-            // If terminal, add to FIRST and stop
-            if (productions.find(currentSymbol) == productions.end()) {
+
+            if (!(currentSymbol[0] >= 'A' && currentSymbol[0] <= 'Z')) { // If terminal
                 firstSet.insert(currentSymbol);
                 allCanDeriveEpsilon = (currentSymbol == "e");
                 break;
             }
-            
-            // Recursive call for non-terminal
+
             set<string> tempFirst;
-            bool symbolCanDeriveEpsilon = calculateFirstDFS(currentSymbol, original,
-                                                           productions, tempFirst);
-            
-            // Add terminals except epsilon
+            bool symbolCanDeriveEpsilon = calculateFirstDFS(currentSymbol, original, production.back(),
+                                                         productions, tempFirst);
+
             for (const string& c : tempFirst) {
-                if (c != "e") firstSet.insert(c);
+                if (c != "e") {
+                    firstSet.insert(c); // Add terminals
+                }
             }
-            
+
             if (!symbolCanDeriveEpsilon) {
                 allCanDeriveEpsilon = false;
                 break;
             }
-            
+
             if (i == production.size() - 1 && symbolCanDeriveEpsilon) {
                 canDeriveEpsilon = true;
             }
         }
-        
-        if (allCanDeriveEpsilon) {
+
+        if (allCanDeriveEpsilon) { // If whole production can epsilon
             firstSet.insert("e");
             canDeriveEpsilon = true;
         }
     }
-    
+
     return canDeriveEpsilon;
 }
 
-// Function to compute FIRST sets
+// Function to compute first sets for all non-terminals
 map<string, set<string>> computeFirstSets(const Grammar& grammar) {
     map<string, set<string>> firstSets;
-    
-    for (const auto& entry : grammar.productions) {
+
+    for (const auto& entry : grammar.productions) { // For every non-terminal
+        string nonTerminal = entry.first;
         set<string> firstSet;
-        calculateFirstDFS(entry.first, entry.first, grammar.productions, firstSet);
-        firstSets[entry.first] = firstSet;
+        calculateFirstDFS(nonTerminal, nonTerminal, nonTerminal, grammar.productions, firstSet);
+        firstSets[nonTerminal] = firstSet; // Save first set
     }
-    
+
     return firstSets;
 }
 
-// Function to compute FOLLOW sets
+
+// Function for find FOLLOW sets
 map<string, set<string>> computeFollowSets(const Grammar& grammar, const map<string, set<string>>& firstSets) {
-    map<string, set<string>> followSets;
-    
-    // Initialize FOLLOW(start symbol) with $
+    map<string, set<string>> followSets; // we making map for FOLLOW set
+
+    // For start symbol we put $ because it should end
     followSets[grammar.startSymbol].insert("$");
-    
+
+    // We keep doing until nothing change
     bool changed = true;
     while (changed) {
         changed = false;
-        
-        for (const auto& entry : grammar.productions) {
+
+        for (const auto& entry : grammar.productions) { // look for every non-terminal
             string nonTerminal = entry.first;
-            
-            for (const auto& production : entry.second) {
-                for (size_t i = 0; i < production.size(); ++i) {
-                    if (grammar.productions.find(production[i]) != grammar.productions.end()) {
-                        string B = production[i];
-                        
-                        // Case: B is followed by something
+
+            for (const auto& production : entry.second) { // look every rule of non-terminal
+                for (size_t i = 0; i < production.size(); i++) {
+                    // We only care if it non-terminal
+                    if (production[i][0] >= 'A' && production[i][0] <= 'Z') {
+                        string B = production[i]; // B is that non-terminal
+
+                        // if after B there is something
                         if (i + 1 < production.size()) {
                             string next = production[i + 1];
-                            
-                            // If next is a terminal
-                            if (grammar.productions.find(next) == grammar.productions.end()) {
+
+                            // if next is terminal, add it in FOLLOW(B)
+                            if (!(next[0] >= 'A' && next[0] <= 'Z')) {
                                 if (next != "e" && followSets[B].insert(next).second) {
-                                    changed = true;
+                                    changed = true; // something new added
                                 }
                             }
-                            // If next is a non-terminal
+                            // if next is also non-terminal
                             else {
-                                // Add FIRST(next) except epsilon
+                                // add FIRST(next) to FOLLOW(B) but not epsilon
                                 for (const string& c : firstSets.at(next)) {
                                     if (c != "e" && followSets[B].insert(c).second) {
                                         changed = true;
                                     }
                                 }
-                                
-                                // If FIRST(next) contains epsilon
+
+                                // if FIRST(next) got epsilon, check further
                                 if (firstSets.at(next).find("e") != firstSets.at(next).end()) {
                                     bool allCanDeriveEpsilon = true;
-                                    
-                                    for (size_t j = i + 1; j < production.size(); ++j) {
+
+                                    for (size_t j = i + 1; j < production.size(); j++) {
                                         string symbol = production[j];
-                                        
-                                        if (grammar.productions.find(symbol) == grammar.productions.end()) {
-                                            if (symbol != "e" && followSets[B].insert(symbol).second) {
-                                                changed = true;
+
+                                        if (!(symbol[0] >= 'A' && symbol[0] <= 'Z')) { // if terminal
+                                            if (symbol != "e") {
+                                                if (followSets[B].insert(symbol).second) {
+                                                    changed = true;
+                                                }
                                             }
                                             allCanDeriveEpsilon = (symbol == "e");
                                             break;
                                         }
-                                        
+
+                                        // Add terminals from FIRST(symbol)
                                         bool canDeriveEpsilon = false;
                                         for (const string& c : firstSets.at(symbol)) {
-                                            if (c == "e") canDeriveEpsilon = true;
-                                            else if (followSets[B].insert(c).second) {
+                                            if (c == "e") {
+                                                canDeriveEpsilon = true;
+                                            } else if (followSets[B].insert(c).second) {
                                                 changed = true;
                                             }
                                         }
-                                        
+
+                                        // if symbol cannot give epsilon, no need go further
                                         if (!canDeriveEpsilon) {
                                             allCanDeriveEpsilon = false;
                                             break;
                                         }
                                     }
-                                    
+
+                                    // if everything after can give epsilon, add FOLLOW(A) to FOLLOW(B)
                                     if (allCanDeriveEpsilon) {
                                         for (const string& c : followSets[nonTerminal]) {
                                             if (followSets[B].insert(c).second) {
@@ -367,8 +386,9 @@ map<string, set<string>> computeFollowSets(const Grammar& grammar, const map<str
                                 }
                             }
                         }
-                        // If B is the last symbol
+                        // if B is last symbol
                         else {
+                            // Add FOLLOW(A) to FOLLOW(B)
                             for (const string& c : followSets[nonTerminal]) {
                                 if (followSets[B].insert(c).second) {
                                     changed = true;
@@ -380,107 +400,126 @@ map<string, set<string>> computeFollowSets(const Grammar& grammar, const map<str
             }
         }
     }
-    
-    return followSets;
+
+    return followSets; // return final FOLLOW sets
 }
 
-// Function to remove left recursion
+// Function for removing left recursion
 Grammar removeLeftRecursion(const Grammar& original) {
     Grammar result = original;
-    bool hadLeftRecursion = false;
-    
+    bool hadLeftRecursion = false; // flag for if we found left recursion
+
+    // We store all non-terminals in a vector
     vector<string> nonTerminals;
     for (const auto& entry : result.productions) {
         nonTerminals.push_back(entry.first);
     }
+
+    // Sort to make sure same order always
     sort(nonTerminals.begin(), nonTerminals.end());
-    
+
+    // Algorithm to remove left recursion
     for (const string& Ai : nonTerminals) {
-        // Handle indirect recursion
+        // Look at all non-terminals before Ai
         for (const string& Aj : nonTerminals) {
             if (Aj >= Ai) break;
-            
+
             vector<vector<string>> newProductions;
-            
+
+            // Replace Ai -> Aj γ with Ai -> δ γ
             for (const auto& production : result.productions[Ai]) {
                 if (!production.empty() && production[0] == Aj) {
+                    // production start with Aj
                     vector<string> gamma(production.begin() + 1, production.end());
-                    for (const auto& delta : result.productions[Aj]) {
-                        vector<string> newProd = delta;
-                        newProd.insert(newProd.end(), gamma.begin(), gamma.end());
-                        newProductions.push_back(newProd);
+
+                    for (const auto& deltaProduction : result.productions[Aj]) {
+                        vector<string> newProduction = deltaProduction;
+                        newProduction.insert(newProduction.end(), gamma.begin(), gamma.end());
+                        newProductions.push_back(newProduction);
                     }
                 } else {
+                    // keep same production
                     newProductions.push_back(production);
                 }
             }
-            
+
             result.productions[Ai] = newProductions;
         }
-        
-        // Handle direct recursion
-        vector<vector<string>> alphaProductions;
-        vector<vector<string>> betaProductions;
-        
+
+        // Now remove direct left recursion in Ai
+        vector<vector<string>> alphaProductions;  // production like Ai -> Ai a
+        vector<vector<string>> betaProductions;   // production like Ai -> β
+
         for (const auto& production : result.productions[Ai]) {
             if (!production.empty() && production[0] == Ai) {
+                // this production have left recursion
                 hadLeftRecursion = true;
                 vector<string> alpha(production.begin() + 1, production.end());
                 alphaProductions.push_back(alpha);
             } else {
+                // no left recursion here
                 betaProductions.push_back(production);
             }
         }
-        
+
         if (!alphaProductions.empty()) {
-            string newNonTerminal = Ai + "1";
+            // Create new non-terminal like Ai'
+            string newNonTerminal = Ai + "'";
             while (result.productions.find(newNonTerminal) != result.productions.end()) {
-                newNonTerminal.back()++;
+                newNonTerminal += "'";
             }
-            
+
+            // New rules: Ai -> β Ai' and Ai' -> a Ai' | e
             vector<vector<string>> newAiProductions;
             vector<vector<string>> newAiPrimeProductions;
-            
+
             for (const auto& beta : betaProductions) {
-                vector<string> newProd = beta;
-                if (beta == vector<string>{"e"}) {
-                    newProd = {newNonTerminal};
+                vector<string> newProduction = beta;
+                if (beta.size() == 1 && beta[0] == "e") {
+                    newProduction = {newNonTerminal};
                 } else {
-                    newProd.push_back(newNonTerminal);
+                    newProduction.push_back(newNonTerminal);
                 }
-                newAiProductions.push_back(newProd);
+                newAiProductions.push_back(newProduction);
             }
-            
+
+            // If no beta, add Ai -> Ai'
             if (betaProductions.empty()) {
                 newAiProductions.push_back({newNonTerminal});
             }
-            
+
             for (const auto& alpha : alphaProductions) {
-                vector<string> newProd = alpha;
-                newProd.push_back(newNonTerminal);
-                newAiPrimeProductions.push_back(newProd);
+                vector<string> newProduction = alpha;
+                newProduction.push_back(newNonTerminal);
+                newAiPrimeProductions.push_back(newProduction);
             }
-            
+
+            // add epsilon to Ai'
             newAiPrimeProductions.push_back({"e"});
-            
+
             result.productions[Ai] = newAiProductions;
             result.productions[newNonTerminal] = newAiPrimeProductions;
             nonTerminals.push_back(newNonTerminal);
         }
     }
-    
-    cout << "\n" << (hadLeftRecursion ? "Left recursion was removed." : "No left recursion found.") << endl;
+
+    if (hadLeftRecursion) {
+        cout << "\nLeft recursion was removed." << endl;
+    } else {
+        cout << "\nNo left recursion found." << endl;
+    }
+
     return result;
 }
 
-// Function to print FIRST and FOLLOW sets
+// Function for printing FIRST and FOLLOW sets
 void printSets(const map<string, set<string>>& sets, const string& title) {
     cout << "\n" << title << ":" << endl;
     for (const auto& entry : sets) {
         cout << entry.first << " = {";
         bool first = true;
         for (const string& symbol : entry.second) {
-            if (!first) cout << ", ";
+            if (!first) cout << ",";
             cout << symbol;
             first = false;
         }
@@ -488,267 +527,294 @@ void printSets(const map<string, set<string>>& sets, const string& title) {
     }
 }
 
-// Function to construct LL(1) parsing table
-map<pair<string, string>, string> constructLL1Table(const Grammar& grammar,
-                                                   const map<string, set<string>>& firstSets,
-                                                   const map<string, set<string>>& followSets) {
-    map<pair<string, string>, string> table;
-    set<string> terminals;
-    
-    // Collect terminals
-    for (const auto& entry : firstSets) {
-        for (const string& terminal : entry.second) {
-            if (terminal != "e") terminals.insert(terminal);
-        }
-    }
-    for (const auto& entry : followSets) {
-        for (const string& terminal : entry.second) {
-            terminals.insert(terminal);
-        }
-    }
-    
-    // Build table
-    for (const auto& entry : grammar.productions) {
-        string nonTerminal = entry.first;
-        
-        for (size_t i = 0; i < entry.second.size(); ++i) {
-            const vector<string>& production = entry.second[i];
-            
-            // Compute FIRST set of the production
-            set<string> productionFirst;
-            bool canDeriveEpsilon = true;
-            
-            for (const string& symbol : production) {
-                if (symbol == "e") {
-                    productionFirst.insert("e");
-                    break;
-                }
-                
-                if (grammar.productions.find(symbol) == grammar.productions.end()) {
-                    productionFirst.insert(symbol);
-                    canDeriveEpsilon = false;
-                    break;
-                }
-                
-                bool symbolCanDeriveEpsilon = false;
-                for (const string& c : firstSets.at(symbol)) {
-                    if (c == "e") symbolCanDeriveEpsilon = true;
-                    else productionFirst.insert(c);
-                }
-                
-                if (!symbolCanDeriveEpsilon) {
-                    canDeriveEpsilon = false;
-                    break;
-                }
-            }
-            
-            // If production derives epsilon, add FOLLOW terminals
-            if (canDeriveEpsilon || production == vector<string>{"e"}) {
-                productionFirst.insert("e");
-                for (const string& c : followSets.at(nonTerminal)) {
-                    productionFirst.insert(c);
-                }
-            }
-            
-            // Add production to table
-            string prodStr = nonTerminal + " -> ";
-            for (const string& s : production) prodStr += s + " ";
-            
-            for (const string& terminal : productionFirst) {
-                if (terminal != "e") {
-                    pair<string, string> key = {nonTerminal, terminal};
-                    if (!table[key].empty()) {
-                        table[key] += "/" + prodStr; // Conflict
-                    } else {
-                        table[key] = prodStr;
-                    }
-                }
-            }
-        }
-    }
-    
-    // Print table
-    cout << "\nLL(1) Parsing Table:" << endl;
-    cout << setw(15) << " ";
-    for (const string& terminal : terminals) {
-        cout << setw(15) << terminal;
-    }
-    cout << endl;
-    
-    for (const auto& entry : grammar.productions) {
-        string nonTerminal = entry.first;
-        cout << setw(15) << nonTerminal;
-        for (const string& terminal : terminals) {
-            string entryStr = table[{nonTerminal, terminal}];
-            cout << setw(15) << (entryStr.empty() ? "-" : entryStr);
-        }
-        cout << endl;
-    }
-    
-    return table;
+
+// Make LL(1) parsing table
+ParseTable constructLL1Table(const Grammar& grammar,
+    const map<string, set<string>>& firstSets,
+    const map<string, set<string>>& followSets) {
+cout << "\nConstructing LL(1) Parsing Table..." << endl;
+
+ParseTable table;
+
+// Find all terminal from grammar
+set<string> terminals;
+for (const auto& entry : firstSets) {
+for (const string& terminal : entry.second) {
+if (terminal != "e") {
+terminals.insert(terminal);
+}
+}
+}
+for (const auto& entry : followSets) {
+for (const string& terminal : entry.second) {
+terminals.insert(terminal);
+}
 }
 
-// Function to parse input strings
-void parseInput(const string& filename, const Grammar& grammar,
-                const map<string, set<string>>& firstSets,
-                const map<string, set<string>>& followSets,
-                const map<pair<string, string>, string>& parseTable) {
-    ifstream fin(filename);
-    if (!fin) {
-        cerr << "Error opening file: " << filename << endl;
-        exit(1);
-    }
-    
-    cout << "\nParsing Input:\n" << endl;
-    cout << setw(5) << "Step" << " | " << setw(20) << "Stack" << " | "
-         << setw(15) << "Input" << " | " << setw(30) << "Action" << endl;
-    cout << string(75, '-') << endl;
-    
-    string line;
-    int lineNum = 0;
-    int errorCount = 0;
-    int step = 0;
-    
-    while (getline(fin, line)) {
-        lineNum++;
-        if (line.empty()) continue;
-        
-        // Split input line into tokens
-        vector<string> tokens = split(line, ' ');
-        tokens.push_back("$"); // Add end marker
-        
-        // Initialize stack
-        Stack stack;
-        stack.push("$");
-        stack.push(grammar.startSymbol);
-        
-        size_t tokenIndex = 0;
-        bool lineHasError = false;
-        
-        while (!stack.empty() && tokenIndex < tokens.size()) {
-            string stackTop = stack.top();
-            string currentToken = tokens[tokenIndex];
-            
-            // Print current state
-            string action;
-            if (stackTop == currentToken) {
-                action = "Match " + currentToken;
-                stack.pop();
-                tokenIndex++;
-            } else if (grammar.productions.find(stackTop) != grammar.productions.end()) {
-                // Non-terminal: look up parse table
-                string prod = parseTable.at({stackTop, currentToken});
-                if (prod.empty()) {
-                    // Error: no production
-                    action = "Error: No production for " + stackTop + " on " + currentToken;
-                    cout << setw(5) << step++ << " | " << setw(20) << stack.to_string()
-                         << " | " << setw(15) << currentToken << " | " << setw(30) << action << endl;
-                    
-                    cout << "Line " << lineNum << ": Syntax Error: Unexpected token '"
-                         << currentToken << "'\n";
-                    errorCount++;
-                    lineHasError = true;
-                    
-                    // Panic mode recovery: skip tokens until synchronization
-                    while (tokenIndex < tokens.size() &&
-                           followSets.at(stackTop).find(tokens[tokenIndex]) == followSets.at(stackTop).end()) {
-                        tokenIndex++;
-                    }
-                    if (tokenIndex < tokens.size()) {
-                        action = "Recover: Skip to " + tokens[tokenIndex];
-                        cout << setw(5) << step++ << " | " << setw(20) << stack.to_string()
-                             << " | " << setw(15) << tokens[tokenIndex] << " | " << setw(30) << action << endl;
-                    }
-                    stack.pop(); // Pop non-terminal
-                    continue;
-                }
-                
-                // Expand non-terminal
-                stack.pop();
-                for (const auto& prodVec : grammar.productions.at(stackTop)) {
-                    string prodStr = stackTop + " -> ";
-                    for (const string& s : prodVec) prodStr += s + " ";
-                    if (prodStr == prod) {
-                        stack.push_production(prodVec);
-                        break;
-                    }
-                }
-                action = "Expand " + prod;
-            } else {
-                // Error: mismatch
-                action = "Error: Expected " + stackTop + ", got " + currentToken;
-                cout << setw(5) << step++ << " | " << setw(20) << stack.to_string()
-                     << " | " << setw(15) << currentToken << " | " << setw(30) << action << endl;
-                
-                cout << "Line " << lineNum << ": Syntax Error: Expected '" << stackTop
-                     << "' but got '" << currentToken << "'\n";
-                errorCount++;
-                lineHasError = true;
-                
-                // Panic mode recovery: skip token or pop stack
-                if (followSets.at(grammar.startSymbol).find(currentToken) != followSets.at(grammar.startSymbol).end()) {
-                    stack.pop();
-                    action = "Recover: Pop " + stackTop;
-                } else {
-                    tokenIndex++;
-                    action = "Recover: Skip " + currentToken;
-                }
-                cout << setw(5) << step++ << " | " << setw(20) << stack.to_string()
-                     << " | " << setw(15) << (tokenIndex < tokens.size() ? tokens[tokenIndex] : "")
-                     << " | " << setw(30) << action << endl;
-                continue;
-            }
-            
-            cout << setw(5) << step++ << " | " << setw(20) << stack.to_string()
-                 << " | " << setw(15) << currentToken << " | " << setw(30) << action << endl;
-        }
-        
-        // Check if parsing completed successfully
-        if (!lineHasError && stack.empty() && tokenIndex == tokens.size()) {
-            cout << "Line " << lineNum << ": Parsed successfully.\n";
-        } else if (!lineHasError) {
-            cout << "Line " << lineNum << ": Syntax Error: Incomplete parse.\n";
-            errorCount++;
-        }
-        
-        if (lineHasError) {
-            cout << "Line " << lineNum << ": Parsing continued after error recovery.\n";
-        }
-    }
-    
-    fin.close();
-    
-    // Print final message
-    cout << "\nParsing completed " << (errorCount == 0 ? "successfully." : "with " + to_string(errorCount) + " errors.") << endl;
+// For every non-terminal
+for (const auto& entry : grammar.productions) {
+string nonTerminal = entry.first;
+
+// See all production rules
+for (size_t i = 0; i < entry.second.size(); i++) {
+const vector<string>& production = entry.second[i];
+
+// Get FIRST set for production
+set<string> productionFirst;
+bool canDeriveEpsilon = true;
+
+for (const string& symbol : production) {
+if (symbol == "e") {
+productionFirst.insert("e");
+break;
+}
+
+if (!(symbol[0] >= 'A' && symbol[0] <= 'Z')) {
+productionFirst.insert(symbol);
+canDeriveEpsilon = false;
+break;
+}
+
+bool symbolCanDeriveEpsilon = false;
+for (const string& c : firstSets.at(symbol)) {
+if (c == "e") {
+   symbolCanDeriveEpsilon = true;
+} else {
+   productionFirst.insert(c);
+}
+}
+
+if (!symbolCanDeriveEpsilon) {
+canDeriveEpsilon = false;
+break;
+}
+}
+
+// If production can go to epsilon, add FOLLOW set too
+if (canDeriveEpsilon || (production.size() == 1 && production[0] == "e")) {
+productionFirst.insert("e");
+for (const string& c : followSets.at(nonTerminal)) {
+productionFirst.insert(c);
+}
+}
+
+// Now fill the table
+for (const string& terminal : terminals) {
+if (productionFirst.find(terminal) != productionFirst.end()) {
+if (terminal != "e") {
+   // Conflict happen maybe
+   if (!table[nonTerminal][terminal].empty()) {
+       cout << "Warning: Grammar not LL(1)! Conflict at [" << nonTerminal << ", "
+            << terminal << "]" << endl;
+   }
+
+   table[nonTerminal][terminal] = production;
+}
+}
+}
+
+// Handle if production is epsilon
+if (productionFirst.find("e") != productionFirst.end()) {
+for (const string& c : followSets.at(nonTerminal)) {
+if (!table[nonTerminal][c].empty()) {
+   cout << "Warning: Grammar not LL(1)! Conflict at [" << nonTerminal << ", "
+        << c << "]" << endl;
+}
+
+// For epsilon, put it in table for FOLLOW symbols
+if (production.size() == 1 && production[0] == "e") {
+   table[nonTerminal][c] = {"e"};
+} else {
+   table[nonTerminal][c] = production;
+}
+}
+}
+}
+}
+
+// Show the parsing table
+cout << "\nLL(1) Parsing Table:" << endl;
+cout << setw(15) << " ";
+for (const string& terminal : terminals) {
+cout << setw(15) << terminal;
+}
+cout << endl;
+
+for (const auto& row : table) {
+cout << setw(15) << row.first;
+for (const string& terminal : terminals) {
+string entry;
+if (row.second.find(terminal) != row.second.end()) {
+entry = row.first + "->";
+for (size_t i = 0; i < row.second.at(terminal).size(); ++i) {
+entry += row.second.at(terminal)[i];
+if (i < row.second.at(terminal).size() - 1) entry += " ";
+}
+}
+cout << setw(15) << entry;
+}
+cout << endl;
+}
+
+return table;
+}
+
+// Parse one line input
+void parseInput(const ParseTable& table, const Grammar& grammar, const string& input) {
+cout << "\nParsing input: " << input << endl;
+cout << string(50, '-') << endl;
+cout << setw(20) << "Stack" << setw(20) << "Input" << setw(20) << "Action" << endl;
+cout << string(50, '-') << endl;
+
+ParsingStack stack;
+stack.push("$");  // Put end marker
+stack.push(grammar.startSymbol);  // Put start symbol
+
+istringstream iss(input);
+vector<string> inputSymbols;
+string symbol;
+
+// Break input into symbols
+while (iss >> symbol) {
+inputSymbols.push_back(symbol);
+}
+inputSymbols.push_back("$");  // Put end marker
+
+size_t inputPos = 0;
+int errorCount = 0;
+
+while (!stack.empty()) {
+// Show current stack and input
+string currentInput;
+for (size_t i = inputPos; i < inputSymbols.size(); i++) {
+currentInput += inputSymbols[i];
+currentInput += ' ';
+}
+
+cout << setw(20) << stack.toString() << setw(20) << currentInput;
+
+// If input finish but stack not empty
+if (inputPos >= inputSymbols.size()) {
+cout << setw(20) << "Error: Unexpected end of input" << endl;
+errorCount++;
+break;
+}
+
+string currentInputSymbol = inputSymbols[inputPos];
+string topStack = stack.top();
+
+// Both stack and input at $, success
+if (topStack == "$" && currentInputSymbol == "$") {
+cout << setw(20) << "Accept" << endl;
+break;
+}
+
+// Stack top is terminal, match with input
+if (!(topStack[0] >= 'A' && topStack[0] <= 'Z')) {
+if (topStack == currentInputSymbol) {
+cout << setw(20) << "Match: " + topStack << endl;
+stack.pop();
+inputPos++;
+} else {
+cout << setw(20) << "Error: Expected " + topStack + " but found " + currentInputSymbol << endl;
+errorCount++;
+
+// Try fix by skip input symbol
+inputPos++;
+}
+}
+// Stack top is non-terminal, expand
+else {
+if (table.find(topStack) != table.end() &&
+table.at(topStack).find(currentInputSymbol) != table.at(topStack).end()) {
+
+vector<string> production = table.at(topStack).at(currentInputSymbol);
+stack.pop();
+
+string action = "Expand: " + topStack + " -> ";
+for (const string& c : production) {
+action += c + " ";
+}
+cout << setw(20) << action << endl;
+
+// Push production in reverse, so pop correct later
+if (!(production.size() == 1 && production[0] == "e")) {
+for (auto it = production.rbegin(); it != production.rend(); ++it) {
+   stack.push(*it);
+}
+}
+// If epsilon, just pop
+} else {
+cout << setw(20) << "Error: No production for [" + topStack + ", " + currentInputSymbol + "]" << endl;
+errorCount++;
+
+// Try fix by pop from stack
+stack.pop();
+}
+}
+}
+
+cout << string(50, '-') << endl;
+if (errorCount > 0) {
+cout << "Parsing done but " << errorCount << " error(s) happen." << endl;
+} else {
+cout << "Parsing done, no error!" << endl;
+}
+}
+
+// Parse whole input file
+void parseInputFile(const ParseTable& table, const Grammar& grammar, const string& filename) {
+ifstream fin(filename);
+if (!fin) {
+cerr << "Error open input file: " << filename << endl;
+exit(1);
+}
+
+string line;
+int lineNum = 1;
+int totalErrors = 0;
+
+cout << "\nParsing input file: " << filename << endl;
+
+while (getline(fin, line)) {
+if (!line.empty()) {
+cout << "\nLine " << lineNum << ": " << line << endl;
+parseInput(table, grammar, line);
+}
+lineNum++;
+}
+
+cout << "\nParsing finished for all lines." << endl;
+fin.close();
 }
 
 int main() {
-    // Read grammar
-    string grammarFile = "grammar.txt";
-    Grammar originalGrammar = readGrammar(grammarFile);
-    
-    // Apply left factoring
-    Grammar factoredGrammar = applyLeftFactoring(originalGrammar);
-    printGrammar(factoredGrammar, "Grammar After Left Factoring");
-    
-    // Remove left recursion
-    Grammar finalGrammar = removeLeftRecursion(factoredGrammar);
-    printGrammar(finalGrammar, "Grammar After Left Recursion Removal");
-    
-    // Compute FIRST and FOLLOW sets
-    map<string, set<string>> firstSets = computeFirstSets(finalGrammar);
-    printSets(firstSets, "FIRST Sets");
-    
-    map<string, set<string>> followSets = computeFollowSets(finalGrammar, firstSets);
-    printSets(followSets, "FOLLOW Sets");
-    
-    // Construct LL(1) parsing table
-    map<pair<string, string>, string> parseTable = constructLL1Table(finalGrammar, firstSets, followSets);
-    
-    // Parse input strings
-    string inputFile = "input.txt";
-    parseInput(inputFile, finalGrammar, firstSets, followSets, parseTable);
-    
-    cout << "\nDone!" << endl;
-    return 0;
+// Read grammar from file
+string grammarFile = "grammar.txt";
+Grammar originalGrammar = readGrammar(grammarFile);
+
+// Do left factoring
+Grammar factoredGrammar = applyLeftFactoring(originalGrammar);
+printGrammar(factoredGrammar, "Grammar After Left Factoring");
+
+// Remove left recursion
+Grammar finalGrammar = removeLeftRecursion(factoredGrammar);
+printGrammar(finalGrammar, "Grammar After Left Recursion Removal");
+
+// Get FIRST sets
+map<string, set<string>> firstSets = computeFirstSets(finalGrammar);
+printSets(firstSets, "FIRST Sets");
+
+// Get FOLLOW sets
+map<string, set<string>> followSets = computeFollowSets(finalGrammar, firstSets);
+printSets(followSets, "FOLLOW Sets");
+
+// Make parsing table
+ParseTable parseTable = constructLL1Table(finalGrammar, firstSets, followSets);
+
+// Parse input file
+string inputFile = "input.txt";
+parseInputFile(parseTable, finalGrammar, inputFile);
+
+return 0;
 }

@@ -1,3 +1,5 @@
-int x ;
-x = 5 + ;
-if ( x > num ) { x = x - 1 ; }
+abc 
+abc d
+id + id
+id * id
+id + id * id

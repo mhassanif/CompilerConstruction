@@ -1,5 +1,3 @@
-S -> D | I
-D -> int V ;
-I -> if ( E ) { S }
-V -> x
-E -> x > num
+E->E + T | T
+T->T * F | F
+F->( E ) | abc

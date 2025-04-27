@@ -1,0 +1,5 @@
+S -> D | I
+D -> int V ;
+I -> if ( E ) { S }
+V -> x
+E -> x > num

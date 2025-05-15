@@ -1,0 +1,8 @@
+{
+    "postId": 202,
+    "author": {"uid": "u1", "name": "John"},
+    "comments": [
+        {"uid": "u2", "text": "Nice post!"},
+        {"uid": "u3", "text": "I agree!"}
+    ]
+}

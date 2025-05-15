@@ -10,7 +10,7 @@ extern ASTNode *root;
 
 int main(int argc, char *argv[]) {
     int should_print_ast = 0;
-    int should_print_csv = 0; // New flag for terminal output
+    int should_print_csv = 0; 
     char *out_dir = ".";
 
     for (int i = 1; i < argc; i++) {
@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
     process_node(schema, root, NULL, 0);
 
     if (should_print_csv) {
-        print_csv_to_terminal(schema); // New function for terminal output
+        print_csv_to_terminal(schema); 
     } else {
-        write_csv_files(schema, out_dir); // Existing file output
+        write_csv_files(schema, out_dir); 
     }
 
     free_schema(schema);

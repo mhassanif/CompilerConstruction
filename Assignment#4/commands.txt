@@ -1,0 +1,4 @@
+./json2relcsv < input1.json
+^creates csv file
+./json2relcsv --print-csv < input1.json
+^prints on terminal
